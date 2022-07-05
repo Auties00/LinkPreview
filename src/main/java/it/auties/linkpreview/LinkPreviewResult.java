@@ -1,4 +1,4 @@
-package it.auties.preview;
+package it.auties.linkpreview;
 
 import lombok.NonNull;
 

@@ -1,6 +1,6 @@
 package it.auties.preview;
 
-import java.net.URI;
+import it.auties.linkpreview.LinkPreview;
 
 public class PreviewTest {
     public static void main(String[] args) {
