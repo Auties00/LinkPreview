@@ -35,21 +35,42 @@ public class LinkPreview {
      * All links will be scanned.
      *
      * @param text the text to scan
-     * @return a non-null optional wrapping the preview result
+     * @return a non-null list
      */
     public List<LinkPreviewResult> createPreviews(@NonNull String text) {
         try {
-            return Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
-                    .matcher(text)
-                    .results()
-                    .map(MatchResult::group)
-                    .map(URI::create)
-                    .map(LinkPreview::createPreview)
+            return createPreviewStream(text)
                     .flatMap(Optional::stream)
                     .toList();
-        }catch (Exception exception){
+        } catch (Exception exception) {
             return List.of();
         }
+    }
+
+    /**
+     * Creates a preview from a piece of text.
+     * Only the first link will be scanned.
+     *
+     * @param text the text to scan
+     * @return a non-null list
+     */
+    public Optional<LinkPreviewResult> createPreview(@NonNull String text) {
+        try {
+            return createPreviewStream(text)
+                    .flatMap(Optional::stream)
+                    .findFirst();
+        } catch (Exception exception) {
+            return Optional.empty();
+        }
+    }
+
+    private static Stream<Optional<LinkPreviewResult>> createPreviewStream(String text) {
+        return Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
+                .matcher(text)
+                .results()
+                .map(MatchResult::group)
+                .map(URI::create)
+                .map(LinkPreview::createPreview);
     }
 
     /**
@@ -60,8 +81,8 @@ public class LinkPreview {
      */
     public Optional<LinkPreviewResult> createPreview(URI uri) {
         try {
-            return createPreviewAsync(uri).get();
-        }catch (Exception exception){
+            return createPreviewAsync(uri).join();
+        } catch (Throwable throwable) {
             return Optional.empty();
         }
     }
@@ -85,8 +106,8 @@ public class LinkPreview {
      */
     public Optional<LinkPreviewResult> createPreview(HttpClient client, URI uri) {
         try {
-            return createPreviewAsync(client, uri).get();
-        }catch (Exception exception){
+            return createPreviewAsync(client, uri).join();
+        } catch (Throwable throwable) {
             return Optional.empty();
         }
     }
@@ -95,13 +116,13 @@ public class LinkPreview {
      * Creates a preview from an uri asynchronously
      *
      * @param client the client to use
-     * @param uri the uri to use
+     * @param uri    the uri to use
      * @return a non-null completable future wrapping an optional wrapping the preview result
      */
     public CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(@NonNull HttpClient client, @NonNull URI uri) {
         try {
             return createPreviewAsync(client, createDefaultRequest(uri, true));
-        }catch (Throwable throwable){
+        } catch (Throwable throwable) {
             return createPreviewAsync(client, createDefaultRequest(uri, false));
         }
     }
@@ -123,9 +144,9 @@ public class LinkPreview {
      */
     public Optional<LinkPreviewResult> createPreview(HttpClient client, HttpRequest request) {
         try {
-            return createPreviewAsync(client, request).get();
-        }catch (Exception exception){
-            throw new IllegalArgumentException("Cannot create a preview for %s".formatted(request.uri()), exception);
+            return createPreviewAsync(client, request).join();
+        } catch (Throwable throwable) {
+            return Optional.empty();
         }
     }
 
@@ -143,6 +164,11 @@ public class LinkPreview {
 
     private Optional<LinkPreviewResult> handleResponse(HttpResponse<String> response) {
         try {
+            var contentType = response.headers().firstValue("Content-Type");
+            if (contentType.isEmpty() || !contentType.get().equalsIgnoreCase("text/html")) {
+                return Optional.empty();
+            }
+
             var document = Jsoup.parse(response.body());
             var title = getElementContent(document, "og:title")
                     .or(() -> getTitleFallback(document))
@@ -160,12 +186,12 @@ public class LinkPreview {
             var videos = getVideos(document);
             var favIcons = getFavIcons(document, response.uri());
             return Optional.of(new LinkPreviewResult(response.uri(), title, siteName, siteDescription, mediaType, images, videos, favIcons));
-        }catch (Throwable throwable){
+        } catch (Throwable throwable) {
             return Optional.empty();
         }
     }
 
-    private Optional<String> getTitleFallback(Document document){
+    private Optional<String> getTitleFallback(Document document) {
         return document.getElementsByTag("title")
                 .stream()
                 .findFirst()
@@ -199,7 +225,7 @@ public class LinkPreview {
         }
 
         var nodes = document.getElementsByTag("img");
-        if(nodes.isEmpty()) {
+        if (nodes.isEmpty()) {
             return Collections.unmodifiableSet(images);
         }
 
@@ -220,7 +246,7 @@ public class LinkPreview {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    private Optional<String> getElementContent(Document document, String type){
+    private Optional<String> getElementContent(Document document, String type) {
         return getElements(document, type, "property")
                 .stream()
                 .findFirst()

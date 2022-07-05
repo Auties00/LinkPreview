@@ -1,4 +1,4 @@
-module it.auties.preview {
+module it.auties.linkpreview {
     requires static lombok;
 
     requires org.jsoup;
