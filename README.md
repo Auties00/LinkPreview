@@ -3,7 +3,7 @@
 ### What is link preview
 
 This library generates a preview for a link or for a text containing any number of links. 
-Its functionality is aligned with [link-preview-js](https://github.com/ospfranco/link-preview-js/blob/main/README.md) 
+Its functionality is aligned with [link-preview-js](https://github.com/ospfranco/link-preview-js) 
 as I was looking for an alternative to this library for Java but couldn't find any.
 
 ### How to install
