@@ -164,8 +164,10 @@ public class LinkPreview {
 
     private Optional<LinkPreviewResult> handleResponse(HttpResponse<String> response) {
         try {
-            var contentType = response.headers().firstValue("Content-Type");
-            if (contentType.isEmpty() || !contentType.get().equalsIgnoreCase("text/html")) {
+            var contentType = response.headers().firstValue("Content-Type")
+                    .map(type -> type.contains(";") ? type.split(";", 2)[0] : type)
+                    .orElse(null);
+            if (contentType == null || !contentType.equalsIgnoreCase("text/html")) {
                 return Optional.empty();
             }
 
