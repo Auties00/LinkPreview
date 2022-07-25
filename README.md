@@ -13,7 +13,7 @@ as I was looking for an alternative to this library for Java but couldn't find a
 ```xml
 <dependency>
     <groupId>com.github.auties00</groupId>
-    <artifactId>link-preview<</artifactId>
+    <artifactId>link-preview</artifactId>
     <version>1.3</version>
 </dependency>
 ```
