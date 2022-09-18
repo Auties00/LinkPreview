@@ -6,7 +6,7 @@
 
     <groupId>com.github.auties00</groupId>
     <artifactId>link-preview</artifactId>
-    <version>1.3</version>
+    <version>1.4</version>
     <name>Link Preview</name>
     <description>Generate a preview for a link or for a text containing links</description>
     <url>https://github.com/Auties00/LinkPreview</url>
@@ -85,7 +85,7 @@
         <javadoc.plugin.version>3.2.0</javadoc.plugin.version>
         <nexus.plugin.version>1.6.13</nexus.plugin.version>
         <lombok.version>1.18.24</lombok.version>
-        <jsoup.version>1.15.1</jsoup.version>
+        <jsoup.version>1.15.3</jsoup.version>
     </properties>
 
     <dependencies>

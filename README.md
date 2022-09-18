@@ -14,7 +14,7 @@ as I was looking for an alternative to this library for Java but couldn't find a
 <dependency>
     <groupId>com.github.auties00</groupId>
     <artifactId>link-preview</artifactId>
-    <version>1.3</version>
+    <version>1.4</version>
 </dependency>
 ```
 
@@ -22,12 +22,12 @@ as I was looking for an alternative to this library for Java but couldn't find a
 
 1. Groovy DSL
    ```groovy
-   implementation 'com.github.auties00:link-preview:1.3'
+   implementation 'com.github.auties00:link-preview:1.4'
    ```
 
 2. Kotlin DSL
    ```kotlin
-   implementation("com.github.auties00:link-preview:1.3")
+   implementation("com.github.auties00:link-preview:1.4")
    ```
    
 ### How to use
