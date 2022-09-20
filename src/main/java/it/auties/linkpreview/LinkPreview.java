@@ -211,17 +211,17 @@ public class LinkPreview {
     }
 
     private Set<LinkPreviewMedia> getImages(Document document, URI uri) {
-        var imagesIterator = getElements(document, "og:image")
+        var images = getElements(document, "og:image")
                 .stream()
                 .map(src -> src.attr("content"))
                 .map(uri::resolve)
-                .iterator();
-        if (!imagesIterator.hasNext()) {
+                .collect(Collectors.toUnmodifiableSet());
+        if (!images.isEmpty()) {
             var widths = getElements(document, "og:image:width")
                     .iterator();
             var heights = getElements(document, "og:image:height")
                     .iterator();
-            return createMedias(imagesIterator, widths, heights);
+            return createMedias(images.iterator(), widths, heights);
         }
 
         var src = document.selectXpath("link[rel=image_src]");
@@ -254,13 +254,13 @@ public class LinkPreview {
     }
 
     private Set<LinkPreviewMedia> getVideos(Document document) {
-        var videoIterator = Stream.of(getElements(document, "og:video:secure_url"), getElements(document, "og:video:url"))
+        var videos = Stream.of(getElements(document, "og:video:secure_url"), getElements(document, "og:video:url"))
                 .flatMap(Collection::stream)
                 .map(entry -> entry.attr("content"))
                 .distinct()
                 .map(URI::create)
-                .iterator();
-        if(!videoIterator.hasNext()){
+                .collect(Collectors.toUnmodifiableSet());
+        if(videos.isEmpty()){
             return Set.of();
         }
 
@@ -268,7 +268,7 @@ public class LinkPreview {
                 .iterator();
         var heights = getElements(document, "og:video:height")
                 .iterator();
-        return createMedias(videoIterator, widths, heights);
+        return createMedias(videos.iterator(), widths, heights);
     }
 
     private Set<LinkPreviewMedia> createMedias(Iterator<URI> videoIterator, Iterator<Element> widths, Iterator<Element> heights) {
