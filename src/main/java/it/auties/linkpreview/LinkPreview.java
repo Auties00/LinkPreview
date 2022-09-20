@@ -37,7 +37,7 @@ public class LinkPreview {
      * @param text the text to scan
      * @return a non-null list
      */
-    public List<LinkPreviewResult> createPreviews(@NonNull String text) {
+    public List<LinkPreviewMatch> createPreviews(@NonNull String text) {
         try {
             return createPreviewStream(text)
                     .flatMap(Optional::stream)
@@ -54,7 +54,7 @@ public class LinkPreview {
      * @param text the text to scan
      * @return a non-null list
      */
-    public Optional<LinkPreviewResult> createPreview(@NonNull String text) {
+    public Optional<LinkPreviewMatch> createPreview(@NonNull String text) {
         try {
             return createPreviewStream(text)
                     .flatMap(Optional::stream)
@@ -64,13 +64,13 @@ public class LinkPreview {
         }
     }
 
-    private static Stream<Optional<LinkPreviewResult>> createPreviewStream(String text) {
+    private static Stream<Optional<LinkPreviewMatch>> createPreviewStream(String text) {
         return Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
                 .matcher(text)
                 .results()
                 .map(MatchResult::group)
-                .map(URI::create)
-                .map(LinkPreview::createPreview);
+                .map(matched -> createPreview(URI.create(matched))
+                        .map(result -> new LinkPreviewMatch(matched, result)));
     }
 
     /**

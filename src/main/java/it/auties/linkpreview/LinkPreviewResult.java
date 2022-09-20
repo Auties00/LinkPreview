@@ -19,6 +19,7 @@ import java.util.Set;
  */
 public record LinkPreviewResult(@NonNull URI uri, @NonNull String title, @NonNull String siteName,
                                 @NonNull String siteDescription, @NonNull String mediaType,
-                                @NonNull Set<LinkPreviewMedia> images, @NonNull Set<LinkPreviewMedia> videos, @NonNull Set<URI> favIcons) {
+                                @NonNull Set<LinkPreviewMedia> images, @NonNull Set<LinkPreviewMedia> videos,
+                                @NonNull Set<URI> favIcons) {
 
 }
