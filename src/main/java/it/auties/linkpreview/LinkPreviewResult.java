@@ -3,7 +3,6 @@ package it.auties.linkpreview;
 import lombok.NonNull;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -20,6 +19,6 @@ import java.util.Set;
  */
 public record LinkPreviewResult(@NonNull URI uri, @NonNull String title, @NonNull String siteName,
                                 @NonNull String siteDescription, @NonNull String mediaType,
-                                @NonNull Set<URI> images, @NonNull Set<URI> videos, @NonNull Set<URI> favIcons) {
+                                @NonNull Set<LinkPreviewMedia> images, @NonNull Set<LinkPreviewMedia> videos, @NonNull Set<URI> favIcons) {
 
 }

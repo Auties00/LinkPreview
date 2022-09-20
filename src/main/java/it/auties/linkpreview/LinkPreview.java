@@ -210,42 +210,77 @@ public class LinkPreview {
         return results.isEmpty() ? Set.of(uri.resolve("/favicon.ico")) : results;
     }
 
-    private Set<URI> getImages(Document document, URI uri) {
-        var images = getElements(document, "og:image")
+    private Set<LinkPreviewMedia> getImages(Document document, URI uri) {
+        var imagesIterator = getElements(document, "og:image")
                 .stream()
                 .map(src -> src.attr("content"))
                 .map(uri::resolve)
-                .collect(Collectors.toCollection(HashSet::new));
-        if (!images.isEmpty()) {
-            return Collections.unmodifiableSet(images);
+                .iterator();
+        if (!imagesIterator.hasNext()) {
+            var widths = getElements(document, "og:image:width")
+                    .iterator();
+            var heights = getElements(document, "og:image:height")
+                    .iterator();
+            return createMedias(imagesIterator, widths, heights);
         }
 
         var src = document.selectXpath("link[rel=image_src]");
         if (src.hasAttr("href")) {
-            images.add(uri.resolve(src.attr("href")));
-            return Collections.unmodifiableSet(images);
+            return Set.of(new LinkPreviewMedia(uri.resolve(src.attr("href"))));
         }
 
         var nodes = document.getElementsByTag("img");
         if (nodes.isEmpty()) {
-            return Collections.unmodifiableSet(images);
+            return Set.of();
         }
 
-        nodes.stream()
-                .map(entry -> entry.attr("src"))
-                .distinct()
-                .map(uri::resolve)
-                .forEach(images::add);
-        return Collections.unmodifiableSet(images);
+        return nodes.stream()
+                .map(entry -> new LinkPreviewMedia(uri.resolve(entry.attr("src")),
+                        tryParseUnsignedInt(entry.attr("width")),
+                        tryParseUnsignedInt(entry.attr("height"))))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
-    private Set<URI> getVideos(Document document) {
-        return Stream.of(getElements(document, "og:video:secure_url"), getElements(document, "og:video:url"))
+    private int tryParseUnsignedInt(String input){
+        try {
+            if(input == null){
+                return -1;
+            }
+
+            return Integer.parseUnsignedInt(input);
+        }catch (NumberFormatException exception){
+            return -1;
+        }
+    }
+
+    private Set<LinkPreviewMedia> getVideos(Document document) {
+        var videoIterator = Stream.of(getElements(document, "og:video:secure_url"), getElements(document, "og:video:url"))
                 .flatMap(Collection::stream)
                 .map(entry -> entry.attr("content"))
                 .distinct()
                 .map(URI::create)
-                .collect(Collectors.toUnmodifiableSet());
+                .iterator();
+        if(!videoIterator.hasNext()){
+            return Set.of();
+        }
+
+        var widths = getElements(document, "og:video:width")
+                .iterator();
+        var heights = getElements(document, "og:video:height")
+                .iterator();
+        return createMedias(videoIterator, widths, heights);
+    }
+
+    private Set<LinkPreviewMedia> createMedias(Iterator<URI> videoIterator, Iterator<Element> widths, Iterator<Element> heights) {
+        var results = new HashSet<LinkPreviewMedia>();
+        while (videoIterator.hasNext()){
+            var hasData = widths.hasNext() && heights.hasNext();
+            var width = !hasData ? -1 : tryParseUnsignedInt(widths.next().attr("content"));
+            var height = !hasData ? -1 : tryParseUnsignedInt(heights.next().attr("content"));
+            results.add(new LinkPreviewMedia(videoIterator.next(), width, height));
+        }
+
+        return Collections.unmodifiableSet(results);
     }
 
     private Optional<String> getElementContent(Document document, String type) {
