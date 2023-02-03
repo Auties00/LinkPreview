@@ -6,7 +6,7 @@
 
     <groupId>com.github.auties00</groupId>
     <artifactId>link-preview</artifactId>
-    <version>2.0</version>
+    <version>2.1</version>
     <name>Link Preview</name>
     <description>Generate a preview for a link or for a text containing links</description>
     <url>https://github.com/Auties00/LinkPreview</url>
