@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 @UtilityClass
 @SuppressWarnings("unused")
 public class LinkPreview {
-    private final Pattern URL_REGEX = Pattern.compile("(https?://)?([\\w.-]+)(\\.\\w{2,})+", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+    private final Pattern URL_REGEX = Pattern.compile("(https?://)?([\\w.-]+)(\\.\\w{2,})+(?::(\\d+))?([/\\w.?=-]*)", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
     private final HttpClient CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.ALWAYS)
