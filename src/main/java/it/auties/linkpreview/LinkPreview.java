@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 @UtilityClass
 @SuppressWarnings("unused")
 public class LinkPreview {
-    private final String URL_REGEX = "[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)?";
+    private final Pattern URL_REGEX = Pattern.compile("(https?://)?([\\w.-]+)(\\.\\w{2,})+", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
     private final HttpClient CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.ALWAYS)
@@ -65,12 +65,11 @@ public class LinkPreview {
     }
 
     private static Stream<Optional<LinkPreviewMatch>> createPreviewStream(String text) {
-        return Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
-                .matcher(text)
-                .results()
-                .map(MatchResult::group)
-                .map(matched -> createPreview(URI.create(matched))
-                        .map(result -> new LinkPreviewMatch(matched, result)));
+        return URL_REGEX.matcher(text)
+            .results()
+            .map(MatchResult::group)
+            .map(matched -> createPreview(URI.create(matched))
+                .map(result -> new LinkPreviewMatch(matched, result)));
     }
 
     /**
