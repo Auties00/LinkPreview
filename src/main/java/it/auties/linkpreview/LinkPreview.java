@@ -1,7 +1,6 @@
 package it.auties.linkpreview;
 
 import lombok.NonNull;
-import lombok.experimental.UtilityClass;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -21,11 +20,10 @@ import java.util.stream.Stream;
 /**
  * Utility class to generate preview links
  */
-@UtilityClass
 @SuppressWarnings("unused")
-public class LinkPreview {
-    private final Pattern URL_REGEX = Pattern.compile("(https?://)?([\\w.-]+)(\\.\\w{2,})+(?::(\\d+))?([/\\w.?=-]*)", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
-    private final HttpClient CLIENT = HttpClient.newBuilder()
+public final class LinkPreview {
+    private static final Pattern URL_REGEX = Pattern.compile("(https?://)?([\\w.-]+)(\\.\\w{2,})+(?::(\\d+))?([/\\w.?=-]*)", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+    private static final HttpClient CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .followRedirects(HttpClient.Redirect.ALWAYS)
             .build();
@@ -37,15 +35,32 @@ public class LinkPreview {
      * @param text the text to scan
      * @return a non-null list
      */
-    public List<LinkPreviewMatch> createPreviews(@NonNull String text) {
-        try {
-            return createPreviewStream(text)
-                    .flatMap(Optional::stream)
-                    .toList();
-        } catch (Exception exception) {
-            return List.of();
-        }
+    public static List<LinkPreviewMatch> createPreviews(String text) {
+        return createPreviewsAsync(text).join();
     }
+
+    /**
+     * Creates a preview from a piece of text.
+     * All links will be scanned.
+     *
+     * @param text the text to scan
+     * @return a non-null list
+     */
+    public static CompletableFuture<List<LinkPreviewMatch>> createPreviewsAsync(String text) {
+        Objects.requireNonNull(text);
+        var results = URL_REGEX.matcher(text)
+                .results()
+                .map(MatchResult::group)
+                .map(matched -> createPreviewAsync(URI.create(matched))
+                        .thenApply(optional -> optional.map(value -> new LinkPreviewMatch(matched, value))))
+                .toList();
+        return CompletableFuture.allOf(results.toArray(CompletableFuture[]::new))
+                .thenApply(ignored -> results.stream()
+                        .map(CompletableFuture::join)
+                        .flatMap(Optional::stream)
+                        .toList());
+    }
+
 
     /**
      * Creates a preview from a piece of text.
@@ -54,22 +69,30 @@ public class LinkPreview {
      * @param text the text to scan
      * @return a non-null list
      */
-    public Optional<LinkPreviewMatch> createPreview(@NonNull String text) {
-        try {
-            return createPreviewStream(text)
-                    .flatMap(Optional::stream)
-                    .findFirst();
-        } catch (Exception exception) {
-            return Optional.empty();
-        }
+    public static Optional<LinkPreviewMatch> createPreview(String text) {
+        return createPreviewAsync(text).join();
     }
 
-    private static Stream<Optional<LinkPreviewMatch>> createPreviewStream(String text) {
-        return URL_REGEX.matcher(text)
-            .results()
-            .map(MatchResult::group)
-            .map(matched -> createPreview(URI.create(matched))
-                .map(result -> new LinkPreviewMatch(matched, result)));
+
+    /**
+     * Creates a preview from a piece of text.
+     * Only the first link will be scanned.
+     *
+     * @param text the text to scan
+     * @return a non-null list
+     */
+    public static CompletableFuture<Optional<LinkPreviewMatch>> createPreviewAsync(String text) {
+        Objects.requireNonNull(text);
+        var matched = URL_REGEX.matcher(text)
+                .results()
+                .map(MatchResult::group)
+                .findFirst();
+        if (matched.isEmpty()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
+        return createPreviewAsync(URI.create(matched.get()))
+                .thenApply(optional -> optional.map(value -> new LinkPreviewMatch(matched.get(), value)));
     }
 
     /**
@@ -78,12 +101,8 @@ public class LinkPreview {
      * @param uri the uri to use
      * @return a non-null optional wrapping the preview result
      */
-    public Optional<LinkPreviewResult> createPreview(URI uri) {
-        try {
-            return createPreviewAsync(uri).join();
-        } catch (Throwable throwable) {
-            return Optional.empty();
-        }
+    public static Optional<LinkPreviewResult> createPreview(URI uri) {
+        return createPreviewAsync(uri).join();
     }
 
     /**
@@ -92,7 +111,7 @@ public class LinkPreview {
      * @param uri the uri to use
      * @return a non-null completable future wrapping an optional wrapping the preview result
      */
-    public CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(URI uri) {
+    public static CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(URI uri) {
         return createPreviewAsync(CLIENT, uri);
     }
 
@@ -103,12 +122,8 @@ public class LinkPreview {
      * @param uri    the uri to use
      * @return a non-null optional wrapping the preview result
      */
-    public Optional<LinkPreviewResult> createPreview(HttpClient client, URI uri) {
-        try {
-            return createPreviewAsync(client, uri).join();
-        } catch (Throwable throwable) {
-            return Optional.empty();
-        }
+    public static Optional<LinkPreviewResult> createPreview(HttpClient client, URI uri) {
+        return createPreviewAsync(client, uri).join();
     }
 
     /**
@@ -118,15 +133,25 @@ public class LinkPreview {
      * @param uri    the uri to use
      * @return a non-null completable future wrapping an optional wrapping the preview result
      */
-    public CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(@NonNull HttpClient client, @NonNull URI uri) {
+    public static CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(HttpClient client, URI uri) {
+        Objects.requireNonNull(client);
+        Objects.requireNonNull(uri);
         try {
-            return createPreviewAsync(client, createDefaultRequest(uri, true));
+            var request = createDefaultRequest(uri, true);
+            return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApplyAsync(LinkPreview::handleResponse);
         } catch (Throwable throwable) {
-            return createPreviewAsync(client, createDefaultRequest(uri, false));
+            if(uri.getScheme() != null) {
+                throw throwable;
+            }
+
+            var request = createDefaultRequest(uri, false);
+            return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApplyAsync(LinkPreview::handleResponse);
         }
     }
 
-    private HttpRequest createDefaultRequest(URI uri, boolean secure) {
+    private static HttpRequest createDefaultRequest(URI uri, boolean secure) {
         return HttpRequest.newBuilder()
                 .uri(uri.getScheme() == null ? URI.create("%s://%s".formatted(secure ? "https" : "http", uri)) : uri)
                 .GET()
@@ -134,34 +159,7 @@ public class LinkPreview {
                 .build();
     }
 
-    /**
-     * Creates a preview from an uri synchronously
-     *
-     * @param client  the client to use
-     * @param request the request to use
-     * @return a non-null optional wrapping the preview result
-     */
-    public Optional<LinkPreviewResult> createPreview(HttpClient client, HttpRequest request) {
-        try {
-            return createPreviewAsync(client, request).join();
-        } catch (Throwable throwable) {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Creates a preview from an uri asynchronously
-     *
-     * @param client  the client to use
-     * @param request the request to use
-     * @return a non-null completable future wrapping an optional wrapping the preview result
-     */
-    public CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(@NonNull HttpClient client, @NonNull HttpRequest request) {
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApplyAsync(LinkPreview::handleResponse);
-    }
-
-    private Optional<LinkPreviewResult> handleResponse(HttpResponse<String> response) {
+    private static Optional<LinkPreviewResult> handleResponse(HttpResponse<String> response) {
         try {
             var contentType = response.headers().firstValue("Content-Type")
                     .map(type -> type.contains(";") ? type.split(";", 2)[0] : type)
@@ -192,14 +190,14 @@ public class LinkPreview {
         }
     }
 
-    private Optional<String> getTitleFallback(Document document) {
+    private static Optional<String> getTitleFallback(Document document) {
         return document.getElementsByTag("title")
                 .stream()
                 .findFirst()
                 .map(Element::text);
     }
 
-    private Set<URI> getFavIcons(Document document, URI uri) {
+    private static Set<URI> getFavIcons(Document document, URI uri) {
         var results = Stream.of("@rel=\"icon\"", "@rel=\"shortcut icon\"", "@rel=\"apple-touch-icon\"")
                 .map(selector -> document.selectXpath("//link[%s]".formatted(selector)))
                 .flatMap(Collection::stream)
@@ -209,7 +207,7 @@ public class LinkPreview {
         return results.isEmpty() ? Set.of(uri.resolve("/favicon.ico")) : results;
     }
 
-    private Set<LinkPreviewMedia> getImages(Document document, URI uri) {
+    private static Set<LinkPreviewMedia> getImages(Document document, URI uri) {
         var images = getElements(document, "og:image")
                 .stream()
                 .map(src -> src.attr("content"))
@@ -240,29 +238,25 @@ public class LinkPreview {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    private int tryParseUnsignedInt(String input){
+    private static int tryParseUnsignedInt(String input) {
         try {
-            if(input == null){
+            if (input == null) {
                 return -1;
             }
 
             return Integer.parseUnsignedInt(input);
-        }catch (NumberFormatException exception){
+        } catch (NumberFormatException exception) {
             return -1;
         }
     }
 
-    private Set<LinkPreviewMedia> getVideos(Document document) {
+    private static Set<LinkPreviewMedia> getVideos(Document document) {
         var videos = Stream.of(getElements(document, "og:video:secure_url"), getElements(document, "og:video:url"))
                 .flatMap(Collection::stream)
                 .map(entry -> entry.attr("content"))
                 .distinct()
                 .map(URI::create)
                 .collect(Collectors.toUnmodifiableSet());
-        if(videos.isEmpty()){
-            return Set.of();
-        }
-
         var widths = getElements(document, "og:video:width")
                 .iterator();
         var heights = getElements(document, "og:video:height")
@@ -270,9 +264,9 @@ public class LinkPreview {
         return createMedias(videos.iterator(), widths, heights);
     }
 
-    private Set<LinkPreviewMedia> createMedias(Iterator<URI> videoIterator, Iterator<Element> widths, Iterator<Element> heights) {
+    private static Set<LinkPreviewMedia> createMedias(Iterator<URI> videoIterator, Iterator<Element> widths, Iterator<Element> heights) {
         var results = new HashSet<LinkPreviewMedia>();
-        while (videoIterator.hasNext()){
+        while (videoIterator.hasNext()) {
             var hasData = widths.hasNext() && heights.hasNext();
             var width = !hasData ? -1 : tryParseUnsignedInt(widths.next().attr("content"));
             var height = !hasData ? -1 : tryParseUnsignedInt(heights.next().attr("content"));
@@ -282,7 +276,7 @@ public class LinkPreview {
         return Collections.unmodifiableSet(results);
     }
 
-    private Optional<String> getElementContent(Document document, String type) {
+    private static Optional<String> getElementContent(Document document, String type) {
         return getElements(document, type, "property")
                 .stream()
                 .findFirst()
@@ -290,12 +284,12 @@ public class LinkPreview {
                 .map(entry -> entry.attr("content"));
     }
 
-    private Elements getElements(Document document, String type) {
+    private static Elements getElements(Document document, String type) {
         var elements = getElements(document, type, "property");
         return elements.isEmpty() ? getElements(document, type, "name") : elements;
     }
 
-    private Elements getElements(Document document, String type, String attribute) {
+    private static Elements getElements(Document document, String type, String attribute) {
         return document.selectXpath("//meta[@%s=\"%s\"]".formatted(attribute, type));
     }
 }
