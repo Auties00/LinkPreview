@@ -1,6 +1,5 @@
 package it.auties.linkpreview;
 
-import lombok.NonNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
