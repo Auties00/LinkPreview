@@ -1,12 +1,10 @@
 package it.auties.linkpreview;
 
-import lombok.NonNull;
-
 import java.net.URI;
 import java.util.Objects;
 
-public record LinkPreviewMedia(@NonNull URI uri, int width, int height) {
-    public LinkPreviewMedia(@NonNull URI uri){
+public record LinkPreviewMedia(URI uri, int width, int height) {
+    public LinkPreviewMedia(URI uri){
         this(uri, -1, -1);
     }
 
