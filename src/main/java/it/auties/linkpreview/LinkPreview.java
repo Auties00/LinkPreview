@@ -47,17 +47,21 @@ public final class LinkPreview {
      */
     public static CompletableFuture<List<LinkPreviewMatch>> createPreviewsAsync(String text) {
         Objects.requireNonNull(text);
-        var results = URL_REGEX.matcher(text)
-                .results()
-                .map(MatchResult::group)
-                .map(matched -> createPreviewAsync(URI.create(matched))
-                        .thenApply(optional -> optional.map(value -> new LinkPreviewMatch(matched, value))))
-                .toList();
-        return CompletableFuture.allOf(results.toArray(CompletableFuture[]::new))
-                .thenApply(ignored -> results.stream()
-                        .map(CompletableFuture::join)
-                        .flatMap(Optional::stream)
-                        .toList());
+        try {
+            var results = URL_REGEX.matcher(text)
+                    .results()
+                    .map(MatchResult::group)
+                    .map(matched -> createPreviewAsync(URI.create(matched))
+                            .thenApply(optional -> optional.map(value -> new LinkPreviewMatch(matched, value))))
+                    .toList();
+            return CompletableFuture.allOf(results.toArray(CompletableFuture[]::new))
+                    .thenApply(ignored -> results.stream()
+                            .map(CompletableFuture::join)
+                            .flatMap(Optional::stream)
+                            .toList());
+        }catch (Throwable throwable) {
+            return CompletableFuture.completedFuture(List.of());
+        }
     }
 
 
@@ -82,16 +86,20 @@ public final class LinkPreview {
      */
     public static CompletableFuture<Optional<LinkPreviewMatch>> createPreviewAsync(String text) {
         Objects.requireNonNull(text);
-        var matched = URL_REGEX.matcher(text)
-                .results()
-                .map(MatchResult::group)
-                .findFirst();
-        if (matched.isEmpty()) {
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
+      try {
+          var matched = URL_REGEX.matcher(text)
+                  .results()
+                  .map(MatchResult::group)
+                  .findFirst();
+          if (matched.isEmpty()) {
+              return CompletableFuture.completedFuture(Optional.empty());
+          }
 
-        return createPreviewAsync(URI.create(matched.get()))
-                .thenApply(optional -> optional.map(value -> new LinkPreviewMatch(matched.get(), value)));
+          return createPreviewAsync(URI.create(matched.get()))
+                  .thenApply(optional -> optional.map(value -> new LinkPreviewMatch(matched.get(), value)));
+      }catch (Throwable throwable) {
+          return CompletableFuture.completedFuture(Optional.empty());
+      }
     }
 
     /**
@@ -144,9 +152,13 @@ public final class LinkPreview {
                 throw throwable;
             }
 
-            var request = createDefaultRequest(uri, false);
-            return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenApplyAsync(LinkPreview::handleResponse);
+           try {
+               var request = createDefaultRequest(uri, false);
+               return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                       .thenApplyAsync(LinkPreview::handleResponse);
+           }catch (Throwable ignored) {
+               return CompletableFuture.completedFuture(Optional.empty());
+           }
         }
     }
 
