@@ -119,9 +119,7 @@ public final class LinkPreview {
                 .version(HttpClient.Version.HTTP_1_1)
                 .followRedirects(HttpClient.Redirect.ALWAYS)
                 .build();
-        var future = createPreviewAsync(client, uri);
-        future.whenComplete((result, error) -> client.close());
-        return future;
+        return createPreviewAsync(client, uri);
     }
 
     /**
