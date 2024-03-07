@@ -22,10 +22,6 @@ import java.util.stream.Stream;
 @SuppressWarnings("unused")
 public final class LinkPreview {
     private static final Pattern URL_REGEX = Pattern.compile("(https?://)?([\\w.-]+)(\\.\\w{2,})+(?::(\\d+))?([/\\w.?=-]*)", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
-    private static final HttpClient CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .followRedirects(HttpClient.Redirect.ALWAYS)
-            .build();
 
     /**
      * Creates a preview from a piece of text.
@@ -119,7 +115,13 @@ public final class LinkPreview {
      * @return a non-null completable future wrapping an optional wrapping the preview result
      */
     public static CompletableFuture<Optional<LinkPreviewResult>> createPreviewAsync(URI uri) {
-        return createPreviewAsync(CLIENT, uri);
+        var client = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .followRedirects(HttpClient.Redirect.ALWAYS)
+                .build();
+        var future = createPreviewAsync(client, uri);
+        future.whenComplete((result, error) -> client.close());
+        return future;
     }
 
     /**
@@ -136,7 +138,7 @@ public final class LinkPreview {
     /**
      * Creates a preview from an uri asynchronously
      *
-     * @param client the client to use
+     * @param client the client to use, this instance will not be closed
      * @param uri    the uri to use
      * @return a non-null completable future wrapping an optional wrapping the preview result
      */
